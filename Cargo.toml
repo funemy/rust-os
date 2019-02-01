@@ -1,0 +1,11 @@
+[package]
+name = "yzos"
+version = "0.1.0"
+authors = ["funemy <liyzunique@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+bootloader = "0.3.12"
+
+[package.metadata.bootimage]
+default-target = "conf.json"
