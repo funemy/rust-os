@@ -1,3 +1,5 @@
+use volatile::Volatile;
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -42,7 +44,7 @@ const BUFFER_WIDTH: usize = 80;
 
 #[repr(transparent)]
 struct Buffer {
-    chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
+    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 pub struct Writer {
@@ -64,10 +66,10 @@ impl Writer {
                 let col = self.column_pos;
                 
                 let color_code = self.color_code;
-                self.buffer.chars[row][col] = ScreenChar {
+                self.buffer.chars[row][col].write(ScreenChar {
                     ascii_char: byte,
                     color_code,
-                };
+                });
                 self.column_pos += 1;
             }
         }
@@ -90,6 +92,8 @@ impl Writer {
     }
 }
 
+// print test
+// for non-ASCII characters, they will be printed as a block
 pub fn print_something() {
     let mut writer = Writer {
         column_pos: 0,
@@ -99,5 +103,5 @@ pub fn print_something() {
 
     writer.write_byte(b'H');
     writer.write_string("ello ");
-    writer.write_string("World!");
+    writer.write_string("Wörld!");
 }
