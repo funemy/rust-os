@@ -94,9 +94,9 @@ impl Writer {
                 let character = self.buffer.chars[row][col].read();
                 self.buffer.chars[row-1][col].write(character);
             }
-            self.clear_row(BUFFER_HEIGHT - 1);
-            self.column_pos = 0;
         }
+        self.clear_row(BUFFER_HEIGHT - 1);
+        self.column_pos = 0;
     }
 
     fn clear_row(&mut self, row: usize) {
@@ -132,6 +132,7 @@ pub fn print_something() {
 
     writer.write_byte(b'H');
     writer.write_string("ello ");
-    writer.write_string("Wörld! ");
+    writer.write_string("Wörld!\n");
     write!(writer, "The numbers are {} and {}", 42, 1.0/3.0).unwrap();
+    writer.write_string("\nThis is a long sentence. this is a long sentence. this is a long sentence. this is a long sentence. this is a long sentence. this is a long sentence.");
 }
