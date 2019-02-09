@@ -7,6 +7,7 @@ use core::panic::PanicInfo;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    println!("{}", _info);
     loop {}
 }
 
@@ -15,8 +16,9 @@ fn panic(_info: &PanicInfo) -> ! {
 // linux start
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-
+    let x = "test";
     println!("Hello World{}", "!");
-
+    println!("{}", x);
+    panic!("this is a panic");
     loop {}
 }
