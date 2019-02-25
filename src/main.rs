@@ -17,6 +17,9 @@ fn panic(_info: &PanicInfo) -> ! {
 pub extern "C" fn _start() -> ! {
     let x = "test";
     println!("Hello World{}", "!");
-    println!("{}", x);
+    yzos::interrupts::init_idt();
+
+    x86_64::instructions::int3();
+    println!("It did not crash!");
     loop {}
 }
