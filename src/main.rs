@@ -2,9 +2,8 @@
 #![cfg_attr(not(test), no_main)]
 #![cfg_attr(test, allow(unused_imports))]
 
-mod vga_buffer;
-
 use core::panic::PanicInfo;
+use yzos::println;
 
 #[cfg(not(test))]
 #[panic_handler]
