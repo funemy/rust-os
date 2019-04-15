@@ -9,7 +9,7 @@ use yzos::println;
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     println!("{}", _info);
-    loop {}
+    yzos::hlt_loop();
 }
 
 // linux start
@@ -24,24 +24,23 @@ pub extern "C" fn _start() -> ! {
     unsafe { PICS.lock().initialize() }
     x86_64::instructions::interrupts::enable();
 
-    // trigger a breakpoint interrupt
+    // NOTE: trigger a breakpoint interrupt
     // x86_64::instructions::int3();
 
-    // NOTE: to trigger double fault
+    // NOTE: trigger double fault
     // fn stack_overflow() {
     //     stack_overflow();
     // }
-
     // stack_overflow();
 
     //NOTE: trigger a deadlock between the main thread and interrupt due to the lock in print!
-    loop {
-        use yzos::print;
-        print!("-");
-        for _ in 0..10000 {}
-    }
+    // loop {
+    //     use yzos::print;
+    //     print!("-");
+    //     for _ in 0..10000 {}
+    // }
 
     println!("It did not crash!");
 
-    loop {}
+    yzos::hlt_loop();
 }
