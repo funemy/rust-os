@@ -38,6 +38,7 @@ pub extern "C" fn _start() -> ! {
     loop {
         use yzos::print;
         print!("-");
+        for _ in 0..10000 {}
     }
 
     println!("It did not crash!");
