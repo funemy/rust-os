@@ -1,5 +1,5 @@
-use volatile::Volatile;
 use core::fmt;
+use volatile::Volatile;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,7 +65,7 @@ impl Writer {
 
                 let row = BUFFER_HEIGHT - 1;
                 let col = self.column_pos;
-                
+
                 let color_code = self.color_code;
                 self.buffer.chars[row][col].write(ScreenChar {
                     ascii_char: byte,
@@ -81,7 +81,7 @@ impl Writer {
             match byte {
                 // ..= is inclusive range, same as the obsolete ...
                 // print ascii bytes
-                0x20 ..= 0x7e | b'\n' => self.write_byte(byte),
+                0x20..=0x7e | b'\n' => self.write_byte(byte),
                 // not part of printable ascii range
                 _ => self.write_byte(0xfe),
             }
@@ -92,7 +92,7 @@ impl Writer {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row-1][col].write(character);
+                self.buffer.chars[row - 1][col].write(character);
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
@@ -150,7 +150,6 @@ pub fn _print(args: fmt::Arguments) {
 // for non-ASCII characters, they will be printed as a block
 #[allow(dead_code)]
 pub fn print_something() {
-
     use core::fmt::Write;
 
     let mut writer = Writer {
@@ -162,7 +161,7 @@ pub fn print_something() {
     writer.write_byte(b'H');
     writer.write_string("ello ");
     writer.write_string("Wörld!\n");
-    write!(writer, "The numbers are {} and {}", 42, 1.0/3.0).unwrap();
+    write!(writer, "The numbers are {} and {}", 42, 1.0 / 3.0).unwrap();
     writer.write_string("\nThis is a long sentence. this is a long sentence. this is a long sentence. this is a long sentence. this is a long sentence. this is a long sentence.");
 }
 
@@ -244,6 +243,5 @@ mod test {
                 }
             }
         }
-
     }
 }

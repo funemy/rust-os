@@ -16,19 +16,30 @@ fn panic(_info: &PanicInfo) -> ! {
 #[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    let x = "test";
+    use yzos::interrupts::PICS;
+    // let x = "test";
     println!("Hello World{}", "!");
     yzos::gdt::init();
     yzos::interrupts::init_idt();
+    unsafe { PICS.lock().initialize() }
+    x86_64::instructions::interrupts::enable();
 
     // trigger a breakpoint interrupt
     // x86_64::instructions::int3();
 
-    fn stack_overflow() {
-        stack_overflow();
+    // NOTE: to trigger double fault
+    // fn stack_overflow() {
+    //     stack_overflow();
+    // }
+
+    // stack_overflow();
+
+    //NOTE: trigger a deadlock between the main thread and interrupt due to the lock in print!
+    loop {
+        use yzos::print;
+        print!("-");
     }
 
-    stack_overflow();
     println!("It did not crash!");
 
     loop {}
