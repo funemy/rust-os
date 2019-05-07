@@ -1,6 +1,7 @@
 use crate::println;
 use core::fmt::Debug;
 
+#[derive(Copy, Clone)]
 pub struct LinkedListNode<T>
 where
     T: Default + Eq + Copy + Debug,
@@ -70,6 +71,13 @@ where
         self.size += 1;
     }
 
+    // pub fn append_val(&mut self, content: T) {
+    //     self.append(&mut LinkedListNode::<T>::new(
+    //         core::ptr::null_mut(),
+    //         content,
+    //     ));
+    // }
+
     // remove the first node (starting from the head)
     // whose content is the same as the given `content`
     pub fn remove(&mut self, content: T) {
@@ -80,6 +88,7 @@ where
             if node_content == content {
                 pt.next = unsafe { (*pt.next).next };
                 self.size -= 1;
+                // TODO: thr raw pointer have no gc?
                 return;
             }
             pt = unsafe { &mut (*pt.next) };
@@ -98,5 +107,69 @@ where
             println!("{:?}", unsafe { (*pt.next).content });
             pt = unsafe { &mut (*pt.next) };
         }
+    }
+}
+
+use bitflags::bitflags;
+bitflags! {
+    pub struct PageFlags: u32 {
+        const FRESH = 0x0;
+        const DIRTY = 0x1;
+        const RESERVED = 0x2;
+        const HEAD = 0x4;
+    }
+}
+
+pub struct Page {
+    flgs: PageFlags,
+    count: u16,
+    direct: usize,
+    level: u32,
+    index: usize,
+}
+
+impl Page {
+    pub fn init(&mut self, flags: PageFlags, direct: usize, index: usize) {
+        self.flgs = flags;
+        self.count = 0;
+        self.direct = direct;
+        self.level = 0;
+        self.index = index;
+    }
+
+    pub fn get_flgs(&self) -> PageFlags {
+        self.flgs
+    }
+
+    pub fn get_count(&self) -> u16 {
+        self.count
+    }
+
+    pub fn get_direct(&self) -> usize {
+        self.direct
+    }
+
+    pub fn get_level(&self) -> u32 {
+        self.level
+    }
+    
+    pub fn get_index(&self) -> usize {
+        self.index
+    }
+
+    pub fn set_flgs(&mut self, flgs: PageFlags) {
+        self.flgs = flgs;
+    }
+
+    pub fn add_flgs(&mut self, flgs: PageFlags) {
+        self.flgs = self.flgs | flgs;
+    }
+
+    pub fn reset_flgs(&mut self) {
+        self.flgs = self.flgs ^ self.flgs;
+    }
+
+    pub fn set_level(&mut self, level: u32) {
+        self.level = level;
     }
 }

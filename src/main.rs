@@ -22,7 +22,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     println!("Hello World{}", "!");
     yzos::init();
 
-    test_linked_list();
+    // test_linked_list();
 
     // NOTE: trigger a breakpoint interrupt
     // x86_64::instructions::int3();
@@ -132,6 +132,7 @@ fn test_linked_list() {
         core::ptr::null_mut(),
         100,
     ));
+    // linked_list.append_val(8);
     linked_list.show_complete_list();
     println!("Now testing remove");
     linked_list.remove(6);

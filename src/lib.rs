@@ -1,11 +1,16 @@
 #![cfg_attr(not(test), no_std)]
 #![feature(abi_x86_interrupt)]
+// #![feature(alloc)]
 
-pub mod data_structures;
-pub mod interrupts;
-pub mod memory;
-pub mod vga_buffer;
+// #[macro_use]
+// extern crate alloc;
+pub mod vm;
 pub mod gdt;
+pub mod memory;
+pub mod thread;
+pub mod interrupts;
+pub mod vga_buffer;
+pub mod data_structures;
 
 
 pub fn init() {

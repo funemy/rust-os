@@ -17,7 +17,7 @@ pub unsafe fn init(physical_memory_offset: u64) -> impl MapperAllSizes {
 // complete physical memory is mapped to virtual memory at the passed
 // `physical_memory_offset`. Also, this function must be only called once
 // to avoid aliasing `&mut` references (which is undefined behavior).
-unsafe fn active_level_4_table(physical_memory_offset: u64) -> &'static mut PageTable {
+pub unsafe fn active_level_4_table(physical_memory_offset: u64) -> &'static mut PageTable {
     use x86_64::registers::control::Cr3;
 
     let (level_4_table_frame, _) = Cr3::read();
@@ -45,7 +45,9 @@ pub fn create_example_mapping(
     map_to_result.expect("map_to failed").flush();
 }
 
-use bootloader::bootinfo::{MemoryMap, MemoryRegion, MemoryRegionType};
+
+use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
+
 
 pub struct BootInfoFrameAllocator {
     memory_map: &'static MemoryMap,
@@ -75,6 +77,7 @@ impl BootInfoFrameAllocator {
 unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
         let frame = self.usable_frames().nth(self.next);
+        // self.free_list.append(&mut LinkedListNode::<usize>::new(,next))
         self.next += 1;
         frame
     }
@@ -91,8 +94,17 @@ use crate::println;
 pub fn get_whole_memory(memory_map: &'static MemoryMap) {
     let regions = memory_map.iter();
     let usable_regions = regions.filter(|r| r.region_type == MemoryRegionType::Usable);
+    // let addr_ranges = usable_regions.map(|r| {
+    //     println!("{:?}", r.range.start_addr());
+    //     // println!("{:?}", FRAME_START_ADDRESS);
+    //     if r.range.start_addr() == (FRAME_START_ADDRESS as u64) {
+    //         r.range.start_addr()..r.range.end_addr()
+    //     } else {
+    //         0..0
+    //     }
+    // });
+    // let frame_addresses = addr_ranges.flat_map(|r| r.step_by(4096));
     for (i, r) in usable_regions.enumerate() {
         println!("start{}:{:?}", i, r.range.start_addr());
-        println!("end{}:{:?}", i, r.range.end_addr());
     }
 }
