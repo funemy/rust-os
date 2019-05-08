@@ -4,7 +4,7 @@
 #![feature(alloc_error_handler)]
 
 use core::panic::PanicInfo;
-use yzos::println;
+use yzos::{print, println};
 
 #[cfg(not(test))]
 #[panic_handler]
@@ -98,6 +98,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     println!("finished memory initialization");
 
     // test_linked_list();
+    // test_box();
+    // test_vec();
 
     println!("It did not crash!");
 
@@ -107,6 +109,23 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 // ==============================
 // NOTE: some test functions
 // ==============================
+
+use alloc::boxed::Box;
+#[allow(dead_code)]
+fn test_box() {
+    let box_test = Box::new(42);
+    println!("Box value: {}", box_test);
+}
+
+#[allow(dead_code)]
+fn test_vec() {
+    let mut vec_test = vec![1,2,3,4,5,6,7];
+    vec_test[3] = 42;
+    for i in &vec_test {
+        print!("{} ", i);
+    }
+    println!("");
+}
 
 use yzos::data_structures::{LinkedList, LinkedListNode};
 #[allow(dead_code)]
