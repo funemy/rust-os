@@ -266,7 +266,7 @@ impl SimpleFrameAllocator {
         self.region_num += 1;
     }
 
-    pub fn alloc_frame(&mut self, frame_num: usize) -> Option<&'static mut FrameInfo> {
+    pub fn alloc_frames(&mut self, frame_num: usize) -> Option<&'static mut FrameInfo> {
         // I do reverse order because the second region is larger
         for region_idx in (0..MAX_REGION_NUM).rev() {
             if let Some(frame_info) = self.regions[region_idx].request_frames(frame_num) {
@@ -319,5 +319,15 @@ fn is_free_buddy_frame(frame_info: &mut FrameInfo, level: u32) -> bool {
         return true;
     } else {
         return false;
+    }
+}
+
+unsafe impl FrameAllocator<Size4KiB> for SimpleFrameAllocator {
+    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        if let Some(frame_info) = self.alloc_frames(1) {
+            let frame_size = Size4KiB::SIZE as usize;
+            return Some(PhysFrame::containing_address(PhysAddr::new((frame_info.get_index() * frame_size) as u64)));
+        }
+        None
     }
 }

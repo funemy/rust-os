@@ -143,6 +143,7 @@ pub struct FrameInfo {
     count: u16,
     direct_access: usize,
     level: u32,
+    // this is the global index
     index: usize,
 }
 
@@ -152,7 +153,6 @@ impl FrameInfo {
         self.count = 0;
         self.direct_access = direct;
         self.level = 0;
-        // index for whole physical memory
         self.index = index;
     }
 
