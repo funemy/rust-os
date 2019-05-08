@@ -13,38 +13,6 @@ const MAX_LEVEL: usize = 11;
 // NOTE: very odd, the memory_map given by bootloader only has 2 usable memory regions
 const MAX_REGION_NUM: usize = 2;
 
-// align a size number to a multiple of the unit
-// unit must be power of 2
-fn align_to(size: usize, page_size: usize) -> usize {
-    if size % page_size == 0 {
-        size
-    } else {
-        // TODO: can be optimize to
-        // (size + unit - 1) & (unit - 1)
-        let unit_num = size / page_size;
-        page_size * (unit_num + 1)
-    }
-}
-
-fn required_frame_num(size: usize, page_size: usize) -> usize {
-    align_to(size, page_size) / page_size
-}
-
-fn is_buddy_page(page: &mut FrameInfo, level: u32) -> bool {
-    let flgs = page.get_flgs();
-    // NOTE: 1. the page is at the same level
-    // 2. the page is not mapped
-    // 3. the page is not reserved
-    if (page.get_level() == level)
-        && (page.get_count() == 0)
-        && ((flgs.bits() & FrameFlags::TAKEN.bits()) == 0)
-    {
-        return true;
-    } else {
-        return false;
-    }
-}
-
 // memory region, corresponds to the MemoryRegion in memory_map
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -75,8 +43,9 @@ impl Default for Region {
     }
 }
 
-use crate::println;
+
 use crate::is_power2;
+use crate::println;
 impl Region {
     pub fn new(size: usize, base_frame_num: usize) -> Self {
         let mut region = Region {
@@ -126,10 +95,10 @@ impl Region {
                 let page_idx = block_idx * 2usize.pow(power);
 
                 // FIXME: might be buggy on frame_info
-                let frame_info = unsafe { self.memory_map.offset(page_idx as isize) as *mut FrameInfo };
-                let free_node: *mut LinkedListNode<usize> = unsafe {
-                    (*frame_info).get_direct_access() as *mut LinkedListNode<usize>
-                };
+                let frame_info =
+                    unsafe { self.memory_map.offset(page_idx as isize) as *mut FrameInfo };
+                let free_node: *mut LinkedListNode<usize> =
+                    unsafe { (*frame_info).get_direct_access() as *mut LinkedListNode<usize> };
 
                 unsafe { (*free_node).init(page_idx) };
                 // here the index of free_lists is usize
@@ -156,7 +125,8 @@ impl Region {
         if size > 0 {
             let level: usize = floor(log2(size as f64)) as usize;
             let frame_info = unsafe { self.memory_map.offset(frame_idx as isize) };
-            let free_node: *mut LinkedListNode<usize> = unsafe { (*frame_info).get_direct_access()  as *mut LinkedListNode<usize>};
+            let free_node: *mut LinkedListNode<usize> =
+                unsafe { (*frame_info).get_direct_access() as *mut LinkedListNode<usize> };
             unsafe { (*free_node).init(frame_idx) };
             self.free_lists[level].append(free_node);
             unsafe { (*frame_info).set_level(level as u32) };
@@ -181,9 +151,9 @@ impl Region {
         if self.free_lists[cur_level].size() > 0 {
             return true;
         }
-        
-        if self.split(cur_level+1) {
-            let free_node: *mut LinkedListNode<usize> = self.free_lists[cur_level+1].pop();
+
+        if self.split(cur_level + 1) {
+            let free_node: *mut LinkedListNode<usize> = self.free_lists[cur_level + 1].pop();
             if !free_node.is_null() {
                 let mut frame_idx = unsafe { (*free_node).content };
                 self.free_lists[cur_level].append(free_node);
@@ -195,9 +165,8 @@ impl Region {
                 // find the second half
                 let half_frame_idx = frame_idx + 2usize.pow(cur_level as u32);
                 let half_frame_info = unsafe { self.memory_map.offset(half_frame_idx as isize) };
-                let split_free_node: *mut LinkedListNode<usize> = unsafe {
-                    (*half_frame_info).get_direct_access() as *mut LinkedListNode<usize>
-                };
+                let split_free_node: *mut LinkedListNode<usize> =
+                    unsafe { (*half_frame_info).get_direct_access() as *mut LinkedListNode<usize> };
                 unsafe { (*split_free_node).init(half_frame_idx) };
                 self.free_lists[cur_level].append(split_free_node);
                 unsafe { (*half_frame_info).set_level(cur_level as u32) };
@@ -212,7 +181,7 @@ impl Region {
         if frame_num == 0 || frame_num > self.size {
             return None;
         } else {
-            
+
             // simplified implementation
             // always return one level buddy frame
             if is_power2(frame_num) {
@@ -238,14 +207,50 @@ impl Region {
                 let requested_frame = unsafe { &mut *self.memory_map.offset(frame_idx as isize) };
                 // TODO: do I need to mark the rest of frame as "TAKEN"?
                 requested_frame.add_flgs(FrameFlags::HEAD);
-                self.free_frame_num -= 1<<level;
+                self.free_frame_num -= 1 << level;
                 return Some(requested_frame);
             }
         }
         None
     }
 
-    pub fn retrieve_frame(&mut self) {}
+    pub fn retrieve_frame(&mut self, frame_info: &mut FrameInfo) {
+        let mut frame_idx = frame_info.get_index();
+        // should not happen
+        if frame_idx < self.start_frame_idx || frame_idx > (self.start_frame_idx + self.size) {
+            return;
+        }
+
+        let rel_frame_idx = frame_idx - self.start_frame_idx;
+        let mut level = frame_info.get_level() as usize;
+        self.free_frame_num -= 1 << level;
+        // NOTE: this is the merge process
+        // NOTE: this merge has a problem. Should I only consider merging only the frames that
+        // `used` to be a whole chunk?
+        // FIXME: may be buggy
+        while level < (MAX_LEVEL - 1) {
+            let half_frame_idx = rel_frame_idx + 2usize.pow(level as u32);
+            if half_frame_idx > self.size {
+                break;
+            }
+            let half_frame = unsafe { &mut *self.memory_map.offset(half_frame_idx as isize) };
+            if !is_free_buddy_frame(half_frame, level as u32) {
+                break;
+            }
+            // reset the level of this frame chunk
+            // meaning it is merged
+            half_frame.set_level(0);
+            self.free_lists[level].remove(half_frame_idx);
+            // the level is upgraded
+            level += 1;
+        }
+        // put the merged frame back into the corresponding
+        let merged_frame = unsafe { &mut *self.memory_map.offset(frame_idx as isize) };
+        merged_frame.set_level(level as u32);
+        let node = merged_frame.get_direct_access() as *mut LinkedListNode<usize>;
+        unsafe { (*node).init(frame_idx) };
+        self.free_lists[level].append(node);
+    }
 }
 
 #[derive(Default)]
@@ -261,7 +266,7 @@ impl SimpleFrameAllocator {
         self.region_num += 1;
     }
 
-    pub fn alloc_frame(&mut self, frame_num: usize) -> Option<&'static mut FrameInfo>{
+    pub fn alloc_frame(&mut self, frame_num: usize) -> Option<&'static mut FrameInfo> {
         // I do reverse order because the second region is larger
         for region_idx in (0..MAX_REGION_NUM).rev() {
             if let Some(frame_info) = self.regions[region_idx].request_frames(frame_num) {
@@ -271,10 +276,44 @@ impl SimpleFrameAllocator {
         None
     }
 
-    pub fn dealloc_frame(&mut self, frame_num: usize) {
-    }
+    pub fn dealloc_frame(&mut self, frame_num: usize) {}
 
     pub fn region_num(&self) -> usize {
         self.region_num
+    }
+}
+
+// align a size number to a multiple of the unit
+// unit must be power of 2
+fn align_to(size: usize, page_size: usize) -> usize {
+    if size % page_size == 0 {
+        size
+    } else {
+        // TODO: can be optimize to
+        // (size + unit - 1) & (unit - 1)
+        let unit_num = size / page_size;
+        page_size * (unit_num + 1)
+    }
+}
+
+fn required_frame_num(size: usize, page_size: usize) -> usize {
+    align_to(size, page_size) / page_size
+}
+
+fn is_free_buddy_frame(frame_info: &mut FrameInfo, level: u32) -> bool {
+    let flgs = frame_info.get_flgs();
+    // NOTE:
+    // 1. the frame is at the same level
+    // 2. the frame is not mapped
+    // 3. the frame is not TAKEN, this probably is not used in this implementation
+    // 4. the frame is not HEAD, meaning it is not allocated
+    if (frame_info.get_level() == level)
+        && (frame_info.get_count() == 0)
+        && ((flgs.bits() & FrameFlags::TAKEN.bits()) == 0)
+        && ((flgs.bits() & FrameFlags::HEAD.bits()) == 0)
+    {
+        return true;
+    } else {
+        return false;
     }
 }
