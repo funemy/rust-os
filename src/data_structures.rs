@@ -6,8 +6,8 @@ pub struct LinkedListNode<T>
 where
     T: Default + Eq + Copy + Debug,
 {
-    next: *mut LinkedListNode<T>,
-    content: T,
+    pub next: *mut LinkedListNode<T>,
+    pub content: T,
 }
 
 impl<T> LinkedListNode<T>
@@ -39,6 +39,7 @@ where
     }
 }
 
+#[derive(Copy, Clone, Default)]
 pub struct LinkedList<T>
 where
     T: Default + Eq + Copy + Debug,
@@ -95,6 +96,23 @@ where
         }
     }
 
+    // pop out the first element
+    pub fn pop(&mut self) -> *mut LinkedListNode<T> {
+        if self.head.next.is_null() {
+            return core::ptr::null_mut();
+        } else {
+            let node = self.head.next;
+            self.head.next = unsafe { (*node).next };
+            // FIXME:
+            // this branch should not be needed
+            if self.size == 1 {
+                self.head.next = core::ptr::null_mut();
+            }
+            self.size -= 1;
+            node
+        }
+    }
+
     pub fn size(&mut self) -> usize {
         self.size
     }
@@ -112,32 +130,33 @@ where
 
 use bitflags::bitflags;
 bitflags! {
-    pub struct PageFlags: u32 {
-        const FRESH = 0x0;
+    pub struct FrameFlags: u32 {
+        const FREE = 0x0;
         const DIRTY = 0x1;
-        const RESERVED = 0x2;
+        const TAKEN = 0x2;
         const HEAD = 0x4;
     }
 }
 
-pub struct Page {
-    flgs: PageFlags,
+pub struct FrameInfo {
+    flgs: FrameFlags,
     count: u16,
-    direct: usize,
+    direct_access: usize,
     level: u32,
     index: usize,
 }
 
-impl Page {
-    pub fn init(&mut self, flags: PageFlags, direct: usize, index: usize) {
+impl FrameInfo {
+    pub fn init(&mut self, flags: FrameFlags, direct: usize, index: usize) {
         self.flgs = flags;
         self.count = 0;
-        self.direct = direct;
+        self.direct_access = direct;
         self.level = 0;
+        // index for whole physical memory
         self.index = index;
     }
 
-    pub fn get_flgs(&self) -> PageFlags {
+    pub fn get_flgs(&self) -> FrameFlags {
         self.flgs
     }
 
@@ -145,23 +164,23 @@ impl Page {
         self.count
     }
 
-    pub fn get_direct(&self) -> usize {
-        self.direct
+    pub fn get_direct_access(&self) -> usize {
+        self.direct_access
     }
 
     pub fn get_level(&self) -> u32 {
         self.level
     }
-    
+
     pub fn get_index(&self) -> usize {
         self.index
     }
 
-    pub fn set_flgs(&mut self, flgs: PageFlags) {
+    pub fn set_flgs(&mut self, flgs: FrameFlags) {
         self.flgs = flgs;
     }
 
-    pub fn add_flgs(&mut self, flgs: PageFlags) {
+    pub fn add_flgs(&mut self, flgs: FrameFlags) {
         self.flgs = self.flgs | flgs;
     }
 

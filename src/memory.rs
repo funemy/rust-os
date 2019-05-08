@@ -11,6 +11,11 @@ pub unsafe fn init(physical_memory_offset: u64) -> impl MapperAllSizes {
     MappedPageTable::new(level_4_table, phys_to_virt)
 }
 
+// simple helper function taken from the `init` function above
+pub fn phys2virt(phys_addr: usize, physical_memory_offset: usize) -> usize {
+    phys_addr + physical_memory_offset
+}
+
 // NOTE: returns a mutable reference to the active level 4 table
 //
 // This function is unsafe because the caller must guarantee that the

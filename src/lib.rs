@@ -11,7 +11,9 @@ pub mod thread;
 pub mod interrupts;
 pub mod vga_buffer;
 pub mod data_structures;
+pub mod frame_allocator;
 
+pub static mut physical_memory_offset: usize = 0;
 
 pub fn init() {
     gdt::init();
@@ -24,4 +26,8 @@ pub fn hlt_loop() -> ! {
     loop {
         x86_64::instructions::hlt();
     }
+}
+
+pub fn is_power2(n:usize) -> bool {
+    n & n -1 == 0
 }
