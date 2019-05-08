@@ -1,6 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
 #![cfg_attr(test, allow(unused_imports))]
+#![feature(alloc_error_handler)]
 
 use core::panic::PanicInfo;
 use yzos::println;
@@ -12,31 +13,68 @@ fn panic(_info: &PanicInfo) -> ! {
     yzos::hlt_loop();
 }
 
-// replace global allocator
-// #[macro_use]
-// extern crate alloc;
-// use yzos::vm::KernelHeapAllocator;
-// use yzos::frame_allocator::SimpleFrameAllocator;
-// use alloc::alloc::{GlobalAlloc, Layout};
+// =================================
+// NOTE: replace global allocator
+// =================================
+
+#[macro_use]
+extern crate alloc;
+
+use alloc::alloc::{GlobalAlloc, Layout};
+use yzos::vm::KernelHeapAllocator;
+
+// we need a wrapper here
+// otherwise, we can define a `new` function which create a default object
+// then initialize the object in kernel_main
+struct KernelHeapAllocatorWrap {
+    kernel_heap_allocator: *mut KernelHeapAllocator,
+}
+
+impl KernelHeapAllocatorWrap {
+    pub const fn new() -> Self {
+        KernelHeapAllocatorWrap {
+            kernel_heap_allocator: core::ptr::null_mut(),
+        }
+    }
+
+    pub fn init(&mut self, heap_allocator: *mut KernelHeapAllocator) {
+        self.kernel_heap_allocator = heap_allocator;
+    }
+}
 // Types for which it is safe to share references between threads.
-// unsafe impl Sync for KernelHeapAllocator {}
-// unsafe impl Send for KernelHeapAllocator {}
+unsafe impl Sync for KernelHeapAllocatorWrap {}
+unsafe impl Send for KernelHeapAllocatorWrap {}
 
-// static FRAME_ALLOCATOR: SimpleFrameAllocator = SimpleFrameAllocator::new();
-// static HEAP_ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator::new();
+unsafe impl GlobalAlloc for KernelHeapAllocatorWrap {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let ptr = (*self.kernel_heap_allocator).malloc(layout);
+        ptr
+    }
 
-// unsafe impl GlobalAlloc for KernelHeapAllocator {
-//     unsafe fn alloc (&self, layout: Layout) -> *mut u8 {
-//         let ptr = self.malloc(layout);
-//         ptr
-//     }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        (*self.kernel_heap_allocator).free(ptr, layout);
+    }
+}
 
-//     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-//     }
-// }
+#[global_allocator]
+static mut GLOBAL_ALLOCATOR: KernelHeapAllocatorWrap = KernelHeapAllocatorWrap::new();
 
-// linux start
+#[alloc_error_handler]
+fn alloc_error_handler(layout: Layout) -> ! {
+    println!("{:?}", layout);
+    panic!("Allocation Error");
+}
+
+
+// ==============================
+// NOTE: Main Entry
+// ==============================
+
 use bootloader::{entry_point, BootInfo};
+
+use yzos::memory;
+use yzos::physical_memory_offset;
+use yzos::frame_allocator::SimpleFrameAllocator;
 
 entry_point!(kernel_main);
 
@@ -45,12 +83,30 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     println!("Hello World{}", "!");
     yzos::init();
 
+    println!("finished system initialization");
+
+    unsafe { memory::init(boot_info.physical_memory_offset) };
+    unsafe { physical_memory_offset = boot_info.physical_memory_offset as usize };
+
+    let mut FRAME_ALLOCATOR = SimpleFrameAllocator::new();
+    FRAME_ALLOCATOR.init(&boot_info.memory_map);
+
+    let mut HEAP_ALLOCATOR = KernelHeapAllocator::new(FRAME_ALLOCATOR, 1024);
+
+    unsafe { GLOBAL_ALLOCATOR.init(&mut HEAP_ALLOCATOR) };
+
+    println!("finished memory initialization");
+
     // test_linked_list();
 
     println!("It did not crash!");
 
     yzos::hlt_loop();
 }
+
+// ==============================
+// NOTE: some test functions
+// ==============================
 
 use yzos::data_structures::{LinkedList, LinkedListNode};
 #[allow(dead_code)]
@@ -147,7 +203,6 @@ fn display_l4_l3_page_table(boot_info: &'static BootInfo) {
 
 //NOTE: for testing translating virtual address into physical address
 use x86_64::{structures::paging::MapperAllSizes, VirtAddr};
-use yzos::memory;
 
 #[allow(dead_code)]
 fn test_virt_to_phys(boot_info: &'static BootInfo) {

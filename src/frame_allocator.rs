@@ -253,6 +253,8 @@ impl Region {
     }
 }
 
+use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
+
 #[derive(Default)]
 #[repr(C)]
 pub struct SimpleFrameAllocator {
@@ -261,6 +263,24 @@ pub struct SimpleFrameAllocator {
 }
 
 impl SimpleFrameAllocator {
+    pub fn new() -> Self {
+        SimpleFrameAllocator {
+            ..Default::default()
+        }
+    }
+
+    pub fn init(&mut self, memory_map: &'static MemoryMap) {
+        let regions = memory_map.iter();
+        let usable_regions = regions.filter(|r| r.region_type == MemoryRegionType::Usable);
+        for r in usable_regions {
+            let region = Region::new(
+                (r.range.end_frame_number - r.range.start_frame_number) as usize,
+                r.range.start_frame_number as usize,
+            );
+            self.register_region(region);
+        }
+    }
+
     pub fn register_region(&mut self, region: Region) {
         self.regions[self.region_num] = region;
         self.region_num += 1;
@@ -326,7 +346,9 @@ unsafe impl FrameAllocator<Size4KiB> for SimpleFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
         if let Some(frame_info) = self.alloc_frames(1) {
             let frame_size = Size4KiB::SIZE as usize;
-            return Some(PhysFrame::containing_address(PhysAddr::new((frame_info.get_index() * frame_size) as u64)));
+            return Some(PhysFrame::containing_address(PhysAddr::new(
+                (frame_info.get_index() * frame_size) as u64,
+            )));
         }
         None
     }
