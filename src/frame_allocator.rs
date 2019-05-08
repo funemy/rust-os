@@ -8,7 +8,7 @@ use x86_64::structures::paging::page::{PageSize, Size4KiB};
 use x86_64::structures::paging::{frame::PhysFrame, FrameAllocator};
 use x86_64::PhysAddr;
 
-const MAX_LEVEL: usize = 11;
+const LEVEL_NUM: usize = 11;
 // const MAX_LEVEL: usize = 1;
 // NOTE: very odd, the memory_map given by bootloader only has 2 usable memory regions
 const MAX_REGION_NUM: usize = 2;
@@ -20,7 +20,7 @@ pub struct Region {
     // each node in the linked list denote a buddy
     // the content of each node is the start index of the frame
     // we can use this index to access FrameInfo object
-    free_lists: [LinkedList<usize>; MAX_LEVEL],
+    free_lists: [LinkedList<usize>; LEVEL_NUM],
     size: usize,
     free_frame_num: usize,
     // the base frame index of the region
@@ -87,8 +87,8 @@ impl Region {
 
     fn init_free_list(&mut self) {
         let largest_possible_level: usize = floor(log2(self.size as f64)) as usize;
-        if largest_possible_level >= MAX_LEVEL - 1 {
-            let power: u32 = (MAX_LEVEL as u32) - 1;
+        if largest_possible_level >= LEVEL_NUM - 1 {
+            let power: u32 = (LEVEL_NUM as u32) - 1;
             let block_num = self.size / 2usize.pow(power);
 
             for block_idx in 0..block_num {
@@ -102,7 +102,7 @@ impl Region {
 
                 unsafe { (*free_node).init(page_idx) };
                 // here the index of free_lists is usize
-                self.free_lists[MAX_LEVEL - 1].append(free_node);
+                self.free_lists[LEVEL_NUM - 1].append(free_node);
                 unsafe { (*frame_info).set_level(power) };
             }
 
@@ -143,7 +143,7 @@ impl Region {
     }
 
     pub fn split(&mut self, target_level: usize) -> bool {
-        if target_level >= MAX_LEVEL {
+        if target_level >= LEVEL_NUM {
             return false;
         }
 
@@ -188,7 +188,7 @@ impl Region {
                 // FIXME:
                 // might have bug here
                 let level = log2f(frame_num as f32) as usize;
-                if level > (MAX_LEVEL - 1) {
+                if level > (LEVEL_NUM - 1) {
                     return None;
                 }
 
@@ -228,7 +228,7 @@ impl Region {
         // NOTE: this merge has a problem. Should I only consider merging only the frames that
         // `used` to be a whole chunk?
         // FIXME: may be buggy
-        while level < (MAX_LEVEL - 1) {
+        while level < (LEVEL_NUM - 1) {
             let half_frame_idx = rel_frame_idx + 2usize.pow(level as u32);
             if half_frame_idx > self.size {
                 break;
