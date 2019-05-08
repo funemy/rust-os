@@ -215,7 +215,7 @@ impl Region {
     }
 
     pub fn retrieve_frame(&mut self, frame_info: &mut FrameInfo) {
-        let mut frame_idx = frame_info.get_index();
+        let frame_idx = frame_info.get_index();
         // should not happen
         if frame_idx < self.start_frame_idx || frame_idx > (self.start_frame_idx + self.size) {
             return;
@@ -276,7 +276,11 @@ impl SimpleFrameAllocator {
         None
     }
 
-    pub fn dealloc_frame(&mut self, frame_num: usize) {}
+    pub fn dealloc_frame(&mut self, frame_info: &mut FrameInfo) {
+        for region_idx in (0..MAX_REGION_NUM).rev() {
+            self.regions[region_idx].retrieve_frame(frame_info);
+        }
+    }
 
     pub fn region_num(&self) -> usize {
         self.region_num
