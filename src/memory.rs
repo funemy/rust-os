@@ -16,6 +16,10 @@ pub fn phys2virt(phys_addr: usize, physical_memory_offset: usize) -> usize {
     phys_addr + physical_memory_offset
 }
 
+pub fn virt2phys(virt_addr: usize, physical_memory_offset: usize) -> usize {
+    virt_addr - physical_memory_offset
+}
+
 // NOTE: returns a mutable reference to the active level 4 table
 //
 // This function is unsafe because the caller must guarantee that the

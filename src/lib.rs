@@ -11,7 +11,7 @@ pub mod gdt;
 pub mod interrupts;
 
 pub mod context;
-pub mod thread;
+pub mod process;
 pub mod vga_buffer;
 pub mod vm;
 pub mod memory;
