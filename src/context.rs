@@ -102,4 +102,23 @@ impl Context {
         asm!("mov $0, rbp" : "=r"(self.rbp) : : "memory" : "intel", "volatile");
         asm!("mov rbp, $0" : : "r"(next.rbp) : "memory" : "intel", "volatile");
     }
+
+    // static function
+    // save the current context into a context object
+    // use for kernel process
+    pub fn save_current_context() -> Self {
+        let mut context: Context = Default::default();
+        unsafe {
+            asm!("mov $0, cr3" : "=r"(context.cr3) : : "memory" : "intel", "volatile");
+            asm!("pushfq ; pop $0 " : "=r"(context.rflags) : : "memory" : "intel", "volatile");
+            asm!("mov $0, rbx" : "=r"(context.rbx) : : "memory" : "intel", "volatile");
+            asm!("mov $0, r12" : "=r"(context.r12) : : "memory" : "intel", "volatile");
+            asm!("mov $0, r13" : "=r"(context.r13) : : "memory" : "intel", "volatile");
+            asm!("mov $0, r14" : "=r"(context.r14) : : "memory" : "intel", "volatile");
+            asm!("mov $0, r15" : "=r"(context.r15) : : "memory" : "intel", "volatile");
+            asm!("mov $0, rsp" : "=r"(context.rsp) : : "memory" : "intel", "volatile");
+            asm!("mov $0, rbp" : "=r"(context.rbp) : : "memory" : "intel", "volatile");
+        }
+        context
+    }
 }

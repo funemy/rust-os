@@ -1,4 +1,5 @@
 use crate::context::Context;
+use crate::println;
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -40,6 +41,7 @@ impl Process {
         use crate::PHYSICAL_MEMORY_OFFSET;
         use crate::memory::virt2phys;
         use x86_64::{registers::control::Cr3, structures::paging::PageTable, VirtAddr};
+
         // read kernel CR3
         // since we should always create a process from kernel space
         // this should be fine?
@@ -60,14 +62,27 @@ impl Process {
         let new_page_table_addr = Box::into_raw(new_page_table) as usize;
         unsafe { virt2phys(new_page_table_addr, PHYSICAL_MEMORY_OFFSET) }
     }
-    //     pub fn get_tid(&self) -> u32 {
-    //         self.tid
-    //     }
 
-    //     pub fn set_context(&mut self) {}
+    // NOTE: mostly copied from 622
+    pub fn set_context(&mut self, tfunction: *const fn()) {
+        unsafe {
+            self.context.push_stack(0);
+            self.context.push_stack(thread_shutdown as usize);
+            self.context.push_stack(tfunction as usize);
+            self.context.push_stack(thread_start as usize);
+        }
+    }
 
     //     // static methods
     //     pub fn get_active_thread() { }
 
     //     pub fn dispatch_to() {}
+}
+
+fn thread_start() {
+    println!("Thread Start!");
+}
+
+fn thread_shutdown() {
+    println!("Thread Shutdown!");
 }
