@@ -27,7 +27,7 @@ pub struct Region {
     base_frame_idx: usize,
     // the start (usable) frame number of the region
     start_frame_idx: usize,
-    memory_map: *mut FrameInfo,
+    frame_map: *mut FrameInfo,
 }
 
 impl Default for Region {
@@ -38,7 +38,7 @@ impl Default for Region {
             free_frame_num: 0,
             base_frame_idx: 0,
             start_frame_idx: 0,
-            memory_map: ptr::null_mut(),
+            frame_map: ptr::null_mut(),
         }
     }
 }
@@ -60,7 +60,7 @@ impl Region {
         region.free_frame_num = region.size;
 
         let physical_memory_offset = unsafe { crate::PHYSICAL_MEMORY_OFFSET };
-        region.memory_map =
+        region.frame_map =
             phys2virt(region.base_frame_idx * page_size, physical_memory_offset) as *mut FrameInfo;
 
         region.init_memory_map();
@@ -77,7 +77,7 @@ impl Region {
             // since it's complicated to pre-assign a array,
             // we use offset to access each FrameInfo object
             // similar to memroy_map[idx] in C.
-            let frame_info: &mut FrameInfo = unsafe { &mut *self.memory_map.offset(idx as isize) };
+            let frame_info: &mut FrameInfo = unsafe { &mut *self.frame_map.offset(idx as isize) };
             let global_idx = self.start_frame_idx + idx;
             let phys_addr = global_idx * page_size;
             let virt_addr = phys2virt(phys_addr, physical_memory_offset);
@@ -96,7 +96,7 @@ impl Region {
 
                 // FIXME: might be buggy on frame_info
                 let frame_info =
-                    unsafe { self.memory_map.offset(page_idx as isize) as *mut FrameInfo };
+                    unsafe { self.frame_map.offset(page_idx as isize) as *mut FrameInfo };
                 let free_node: *mut LinkedListNode<usize> =
                     unsafe { (*frame_info).get_direct_access() as *mut LinkedListNode<usize> };
 
@@ -124,7 +124,7 @@ impl Region {
         // println!("be careful about infinite recursion");
         if size > 0 {
             let level: usize = floor(log2(size as f64)) as usize;
-            let frame_info = unsafe { self.memory_map.offset(frame_idx as isize) };
+            let frame_info = unsafe { self.frame_map.offset(frame_idx as isize) };
             let free_node: *mut LinkedListNode<usize> =
                 unsafe { (*frame_info).get_direct_access() as *mut LinkedListNode<usize> };
             unsafe { (*free_node).init(frame_idx) };
@@ -159,12 +159,12 @@ impl Region {
                 self.free_lists[cur_level].append(free_node);
 
                 // change the first half to lower level
-                let frame_info = unsafe { &mut *self.memory_map.offset(frame_idx as isize) };
+                let frame_info = unsafe { &mut *self.frame_map.offset(frame_idx as isize) };
                 frame_info.set_level(cur_level as u32);
 
                 // find the second half
                 let half_frame_idx = frame_idx + 2usize.pow(cur_level as u32);
-                let half_frame_info = unsafe { self.memory_map.offset(half_frame_idx as isize) };
+                let half_frame_info = unsafe { self.frame_map.offset(half_frame_idx as isize) };
                 let split_free_node: *mut LinkedListNode<usize> =
                     unsafe { (*half_frame_info).get_direct_access() as *mut LinkedListNode<usize> };
                 unsafe { (*split_free_node).init(half_frame_idx) };
@@ -204,7 +204,7 @@ impl Region {
                     return None;
                 }
                 let frame_idx = unsafe { (*free_node).content };
-                let requested_frame = unsafe { &mut *self.memory_map.offset(frame_idx as isize) };
+                let requested_frame = unsafe { &mut *self.frame_map.offset(frame_idx as isize) };
                 // TODO: do I need to mark the rest of frame as "TAKEN"?
                 requested_frame.add_flgs(FrameFlags::HEAD);
                 self.free_frame_num -= 1 << level;
@@ -233,7 +233,7 @@ impl Region {
             if half_frame_idx > self.size {
                 break;
             }
-            let half_frame = unsafe { &mut *self.memory_map.offset(half_frame_idx as isize) };
+            let half_frame = unsafe { &mut *self.frame_map.offset(half_frame_idx as isize) };
             if !is_free_buddy_frame(half_frame, level as u32) {
                 break;
             }
@@ -245,7 +245,7 @@ impl Region {
             level += 1;
         }
         // put the merged frame back into the corresponding
-        let merged_frame = unsafe { &mut *self.memory_map.offset(frame_idx as isize) };
+        let merged_frame = unsafe { &mut *self.frame_map.offset(frame_idx as isize) };
         merged_frame.set_level(level as u32);
         let node = merged_frame.get_direct_access() as *mut LinkedListNode<usize>;
         unsafe { (*node).init(frame_idx) };
