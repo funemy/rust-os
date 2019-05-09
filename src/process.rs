@@ -11,7 +11,7 @@ pub static mut NEXT_PID: usize = 0;
 pub static mut ACTIVE_PROCESS: *mut Process = core::ptr::null_mut();
 
 pub struct Process {
-    init: bool,
+    // init: bool,
     pid: usize,
     context: Context,
 }
@@ -28,7 +28,7 @@ impl Process {
         let cr3 = Process::init_page_table();
         let context = Context::new(cr3, rsp, stack);
         Process {
-            init: false,
+            // init: false,
             pid: pid,
             context: context,
         }
@@ -80,7 +80,7 @@ impl Process {
     #[cold]
     #[inline(never)]
     #[naked]
-    pub fn dispatch_to(&mut self, nextp: &mut Self) {
+    pub fn switch_process(&mut self, nextp: &mut Self) {
         unsafe {
             if self.pid != nextp.pid {
                 self.context.switch_to(&mut nextp.context);
@@ -99,9 +99,13 @@ impl Process {
                     push $1
                     iretq"
                     : : "r"(nextp.context.get_rsp()), "r"(rip): "memory" : "intel", "volatile", "alignstack");
-
             }
         }
+    }
+
+    pub fn dispatch_to(nextp: &mut Self) {
+        let active_process: &mut Self = unsafe { &mut *ACTIVE_PROCESS };
+        active_process.switch_process(nextp);
     }
 }
 

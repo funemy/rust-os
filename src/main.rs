@@ -111,6 +111,14 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 // NOTE: some test functions
 // ==============================
 
+use yzos::process::Process;
+static mut process1: *mut Process = core::ptr::null_mut();
+static mut process2: *mut Process = core::ptr::null_mut();
+#[allow(dead_code)]
+fn test_process() {
+
+}
+
 use alloc::boxed::Box;
 #[allow(dead_code)]
 fn test_box() {
