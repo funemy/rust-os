@@ -38,9 +38,13 @@ impl Process {
     // therefore when we construct the new page table
     // we should reserve the content in the kernel page
     fn init_page_table() -> usize {
-        use crate::PHYSICAL_MEMORY_OFFSET;
         use crate::memory::virt2phys;
-        use x86_64::{registers::control::Cr3, structures::paging::PageTable, VirtAddr};
+        use crate::PHYSICAL_MEMORY_OFFSET;
+
+        use x86_64::VirtAddr;
+        use x86_64::registers::control::Cr3;
+        use x86_64::structures::paging::PageTable;
+
 
         // read kernel CR3
         // since we should always create a process from kernel space
@@ -79,6 +83,7 @@ impl Process {
     //     pub fn dispatch_to() {}
 }
 
+// NOTE: Copied from 611
 fn thread_start() {
     println!("Thread Start!");
 }
