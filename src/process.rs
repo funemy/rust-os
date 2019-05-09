@@ -12,7 +12,7 @@ pub struct Process {
     context: Context,
 }
 
-impl Thread {
+impl Process {
     pub fn new(mut stack: Vec<u8>) -> Self {
         let stack_ptr = stack.as_mut_ptr();
         let rsp = unsafe { stack_ptr.offset(stack.len() as isize) as usize };
