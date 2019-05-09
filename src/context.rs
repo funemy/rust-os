@@ -1,8 +1,9 @@
 use alloc::vec::Vec;
 use core::mem;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 // NOTE: only store non-volatile registers
+// `fx` and `fx_loc` are in the redox code, but I don't know what they will affect
 pub struct Context {
     // fx: usize,
     cr3: usize,
@@ -13,16 +14,35 @@ pub struct Context {
     r14: usize,
     r15: usize,
     rbp: usize,
+    // stack pointer
     rsp: usize,
+    // stack content
     stack: Vec<u8>,
     // fx_loc: Vec<u8>,
 }
 
-impl Context {
-    pub fn new() -> Self {
+impl Default for Context {
+    fn default() -> Self {
         Context {
             stack: vec![0_u8; 4096],
             ..Default::default()
+        }
+    }
+}
+
+impl Context {
+    pub fn new(cr3: usize, rsp: usize, stack: Vec<u8>) -> Self {
+        Context {
+            cr3: cr3,
+            rflags: 0,
+            rbx: 0,
+            r12: 0,
+            r13: 0,
+            r14: 0,
+            r15: 0,
+            rbp: rsp,
+            rsp: rsp,
+            stack: stack,
         }
     }
 
@@ -49,6 +69,7 @@ impl Context {
         self.cr3
     }
 
+    // NOTE: this is basically what `save_register` and `restore_register` did in `threads_low.asm`
     #[cold]
     #[inline(never)]
     #[naked]
