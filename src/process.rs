@@ -7,7 +7,8 @@ use alloc::vec::Vec;
 // use spin::Mutex;
 
 // the tid of kernel thread is 0;
-pub static mut next_pid: usize = 0;
+pub static mut NEXT_PID: usize = 0;
+pub static mut ACTIVE_PROCESS: *mut Process = core::ptr::null_mut();
 
 pub struct Process {
     init: bool,
@@ -21,8 +22,8 @@ impl Process {
         let rsp = unsafe { stack_ptr.offset(stack.len() as isize) as usize };
 
         // FIXME: data race here?
-        unsafe { next_pid += 1 };
-        let pid = unsafe { next_pid };
+        unsafe { NEXT_PID += 1 };
+        let pid = unsafe { NEXT_PID };
 
         let cr3 = Process::init_page_table();
         let context = Context::new(cr3, rsp, stack);
@@ -41,10 +42,9 @@ impl Process {
         use crate::memory::virt2phys;
         use crate::PHYSICAL_MEMORY_OFFSET;
 
-        use x86_64::VirtAddr;
         use x86_64::registers::control::Cr3;
         use x86_64::structures::paging::PageTable;
-
+        use x86_64::VirtAddr;
 
         // read kernel CR3
         // since we should always create a process from kernel space
@@ -67,7 +67,7 @@ impl Process {
         unsafe { virt2phys(new_page_table_addr, PHYSICAL_MEMORY_OFFSET) }
     }
 
-    // NOTE: mostly copied from 622
+    // NOTE: mostly copied from 611
     pub fn set_context(&mut self, tfunction: *const fn()) {
         unsafe {
             self.context.push_stack(0);
@@ -77,10 +77,32 @@ impl Process {
         }
     }
 
-    //     // static methods
-    //     pub fn get_active_thread() { }
+    #[cold]
+    #[inline(never)]
+    #[naked]
+    pub fn dispatch_to(&mut self, nextp: &mut Self) {
+        unsafe {
+            if self.pid != nextp.pid {
+                self.context.switch_to(&mut nextp.context);
 
-    //     pub fn dispatch_to() {}
+                //dealing with iretq stack layout
+                // ss
+                // rsp
+                // rflags
+                // cs
+                // iretq
+                let rip = nextp.context.pop_stack();
+                asm!("push 0
+                    push $0
+                    pushfq
+                    push 8
+                    push $1
+                    iretq"
+                    : : "r"(nextp.context.get_rsp()), "r"(rip): "memory" : "intel", "volatile", "alignstack");
+
+            }
+        }
+    }
 }
 
 // NOTE: Copied from 611

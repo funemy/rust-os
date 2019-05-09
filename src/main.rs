@@ -100,7 +100,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     // test_linked_list();
     test_box();
-    // test_vec();
+    test_vec();
 
     println!("It did not crash!");
 

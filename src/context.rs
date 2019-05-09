@@ -69,6 +69,10 @@ impl Context {
         self.cr3
     }
 
+    pub fn get_rsp(&self) -> usize {
+        self.rsp
+    }
+
     // NOTE: this is basically what `save_register` and `restore_register` did in `threads_low.asm`
     #[cold]
     #[inline(never)]
