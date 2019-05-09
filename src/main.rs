@@ -73,8 +73,9 @@ fn alloc_error_handler(layout: Layout) -> ! {
 use bootloader::{entry_point, BootInfo};
 
 use yzos::memory;
-use yzos::physical_memory_offset;
+
 use yzos::frame_allocator::SimpleFrameAllocator;
+use yzos::PHYSICAL_MEMORY_OFFSET;
 
 entry_point!(kernel_main);
 
@@ -86,19 +87,19 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     println!("finished system initialization");
 
     unsafe { memory::init(boot_info.physical_memory_offset) };
-    unsafe { physical_memory_offset = boot_info.physical_memory_offset as usize };
+    unsafe { PHYSICAL_MEMORY_OFFSET = boot_info.physical_memory_offset as usize };
 
-    let mut FRAME_ALLOCATOR = SimpleFrameAllocator::new();
-    FRAME_ALLOCATOR.init(&boot_info.memory_map);
+    let mut frame_allocator = SimpleFrameAllocator::new();
+    frame_allocator.init(&boot_info.memory_map);
 
-    let mut HEAP_ALLOCATOR = KernelHeapAllocator::new(FRAME_ALLOCATOR, 1024);
+    let mut heap_allocator = KernelHeapAllocator::new(frame_allocator, 1024);
 
-    unsafe { GLOBAL_ALLOCATOR.init(&mut HEAP_ALLOCATOR) };
+    unsafe { GLOBAL_ALLOCATOR.init(&mut heap_allocator) };
 
     println!("finished memory initialization");
 
     // test_linked_list();
-    // test_box();
+    test_box();
     // test_vec();
 
     println!("It did not crash!");
@@ -115,11 +116,12 @@ use alloc::boxed::Box;
 fn test_box() {
     let box_test = Box::new(42);
     println!("Box value: {}", box_test);
+    println!("Box addr: {:?}", Box::into_raw(box_test));
 }
 
 #[allow(dead_code)]
 fn test_vec() {
-    let mut vec_test = vec![1,2,3,4,5,6,7];
+    let mut vec_test = vec![1, 2, 3, 4, 5, 6, 7];
     vec_test[3] = 42;
     for i in &vec_test {
         print!("{} ", i);
@@ -155,7 +157,7 @@ fn trigger_breakpoint() {
 }
 
 // NOTE: trigger double fault
-#[allow(dead_code)]
+#[allow(dead_code, unconditional_recursion)]
 fn stack_overflow() {
     stack_overflow();
 }
@@ -169,7 +171,6 @@ fn trigger_double_fault() {
 #[allow(dead_code)]
 fn trigger_deadlock() {
     loop {
-        use yzos::print;
         print!("-");
         for _ in 0..10000 {}
     }
@@ -201,7 +202,7 @@ use yzos::memory::active_level_4_table;
 #[allow(dead_code)]
 fn display_l4_l3_page_table(boot_info: &'static BootInfo) {
     let l4_table = unsafe { active_level_4_table(boot_info.physical_memory_offset) };
-    use x86_64::{structures::paging::PageTable, VirtAddr};
+    use x86_64::structures::paging::PageTable;
     for (i, entry) in l4_table.iter().enumerate() {
         if !entry.is_unused() {
             println!("L4 Entry {}: {:?}", i, entry);

@@ -59,7 +59,7 @@ impl Region {
         region.size -= info_frame_num;
         region.free_frame_num = region.size;
 
-        let physical_memory_offset = unsafe { crate::physical_memory_offset };
+        let physical_memory_offset = unsafe { crate::PHYSICAL_MEMORY_OFFSET };
         region.memory_map =
             phys2virt(region.base_frame_idx * page_size, physical_memory_offset) as *mut FrameInfo;
 
@@ -70,7 +70,7 @@ impl Region {
     }
 
     fn init_memory_map(&mut self) {
-        let physical_memory_offset = unsafe { crate::physical_memory_offset };
+        let physical_memory_offset = unsafe { crate::PHYSICAL_MEMORY_OFFSET };
         let page_size = Size4KiB::SIZE as usize;
 
         for idx in 0..self.size {

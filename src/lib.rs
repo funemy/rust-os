@@ -1,19 +1,21 @@
 #![cfg_attr(not(test), no_std)]
 #![feature(abi_x86_interrupt)]
-// #![feature(alloc)]
 
 
+#[macro_use]
+extern crate alloc;
 pub mod data_structures;
 pub mod frame_allocator;
 pub mod gdt;
 pub mod interrupts;
 
-pub mod memory;
+pub mod context;
 pub mod thread;
 pub mod vga_buffer;
 pub mod vm;
+pub mod memory;
 
-pub static mut physical_memory_offset: usize = 0;
+pub static mut PHYSICAL_MEMORY_OFFSET: usize = 0;
 
 pub fn init() {
     gdt::init();
