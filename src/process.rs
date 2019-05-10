@@ -12,8 +12,8 @@ pub static mut ACTIVE_PROCESS: *mut Process = core::ptr::null_mut();
 
 pub struct Process {
     // init: bool,
-    pid: usize,
-    context: Context,
+    pub pid: usize,
+    pub context: Context,
 }
 
 impl Process {
@@ -103,9 +103,18 @@ impl Process {
         }
     }
 
+    pub fn get_pid(&self) -> usize {
+        self.pid
+    }
+
     pub fn dispatch_to(nextp: &mut Self) {
         let active_process: &mut Self = unsafe { &mut *ACTIVE_PROCESS };
         active_process.switch_process(nextp);
+    }
+
+    // Not sure if the static lifetime is proper
+    pub fn get_active_process() -> &'static Self {
+        unsafe { &*ACTIVE_PROCESS }
     }
 }
 

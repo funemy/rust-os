@@ -92,6 +92,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut frame_allocator = SimpleFrameAllocator::new();
     frame_allocator.init(&boot_info.memory_map);
 
+    // 4MB for each level
+    // FIXME: DON'T!! change 1024 to a larger value
     let mut heap_allocator = KernelHeapAllocator::new(frame_allocator, 1024);
 
     unsafe { GLOBAL_ALLOCATOR.init(&mut heap_allocator) };
@@ -101,6 +103,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // test_linked_list();
     test_box();
     test_vec();
+    // test_process();
 
     println!("It did not crash!");
 
@@ -112,11 +115,50 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 // ==============================
 
 use yzos::process::Process;
+use yzos::context::Context;
 static mut process1: *mut Process = core::ptr::null_mut();
 static mut process2: *mut Process = core::ptr::null_mut();
+
 #[allow(dead_code)]
 fn test_process() {
+    // let kernel_context = Context::save_current_context();
+    let stack1 = vec![0_u8; 4096];
+    let stack2 = vec![0_u8; 4096];
 
+    let p1 = Box::new(Process::new(stack1));
+    // p1.set_context(tfunction1 as *const fn());
+    unsafe { process1 = Box::into_raw(p1) };
+    let p2 = Box::new(Process::new(stack2));
+    // p2.set_context(tfunction1 as *const fn());
+    unsafe { process2 = Box::into_raw(p2) };
+}
+
+fn pass_on_CPU(process: *mut Process) {
+    let next_process = unsafe { &mut *process };
+    Process::dispatch_to(next_process);
+}
+
+// here tfunction1 and tfunction2 only test
+fn tfunction1() {
+    println!("Process {} is running", Process::get_active_process().get_pid());
+    for i in 0..10 {
+        println!("FUN 1 IN BURST [{}]", i);
+        for j in 0..10 {
+            println!("FUN 1: TICK [{}]", j);
+        }
+        unsafe { pass_on_CPU(process2) };
+    }
+}
+
+fn tfunction2() {
+    println!("Process {} is running", Process::get_active_process().get_pid());
+    for i in 0..10 {
+        println!("FUN 2 IN BURST [{}]", i);
+        for j in 0..10 {
+            println!("FUN 2: TICK [{}]", j);
+        }
+        unsafe { pass_on_CPU(process1) };
+    }
 }
 
 use alloc::boxed::Box;
